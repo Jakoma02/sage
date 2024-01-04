@@ -38,8 +38,8 @@ Methods
 #                  https://www.gnu.org/licenses/
 # ****************************************************************************
 
-from sage.matroids.matroid cimport Matroid
-from sage.matroids.set_system cimport SetSystem
+from .matroid cimport Matroid
+from .set_system cimport SetSystem
 
 from sage.data_structures.bitset_base cimport *
 
@@ -57,10 +57,10 @@ cdef class BasisExchangeMatroid(Matroid):
 
     This base exchange graph is not stored as such, but should be provided
     implicitly by the child class in the form of two methods
-    ``_is_exchange_pair(x, y)`` and ``_exchange(x, y)``, as well as an
+    ``__is_exchange_pair(x, y)`` and ``__exchange(x, y)``, as well as an
     initial basis. At any moment, BasisExchangeMatroid keeps a current basis
-    `B`. The method ``_is_exchange_pair(x, y)`` should return a boolean
-    indicating whether `B - x + y` is a basis. The method ``_exchange(x, y)``
+    `B`. The method ``__is_exchange_pair(x, y)`` should return a boolean
+    indicating whether `B - x + y` is a basis. The method ``__exchange(x, y)``
     is called when the current basis `B` is replaced by said `B-x + y`. It is
     up to the child class to update its internal data structure to make
     information relative to the new basis more accessible. For instance, a
@@ -81,16 +81,16 @@ cdef class BasisExchangeMatroid(Matroid):
     - :class:`BasisMatroid <sage.matroids.basis_matroid.BasisMatroid>`: keeps
       a list of all bases.
 
-        - ``_is_exchange_pair(x, y)`` reduces to a query whether `B - x + y`
+        - ``__is_exchange_pair(x, y)`` reduces to a query whether `B - x + y`
           is a basis.
-        - ``_exchange(x, y)`` has no work to do.
+        - ``__exchange(x, y)`` has no work to do.
 
     - :class:`LinearMatroid <sage.matroids.linear_matroid.LinearMatroid>`:
       keeps a matrix representation `A` of the matroid so that `A[B] = I`.
 
-        - ``_is_exchange_pair(x, y)`` reduces to testing whether `A[r, y]`
+        - ``__is_exchange_pair(x, y)`` reduces to testing whether `A[r, y]`
           is nonzero, where `A[r, x]=1`.
-        - ``_exchange(x, y)`` should modify the matrix so that `A[B - x + y]`
+        - ``__exchange(x, y)`` should modify the matrix so that `A[B - x + y]`
           becomes `I`, which means pivoting on `A[r, y]`.
 
     - ``TransversalMatroid`` (not yet implemented): If `A` is a set of subsets
@@ -100,17 +100,17 @@ cdef class BasisExchangeMatroid(Matroid):
       edge `(A_i,e)` if `e` is in the subset `A_i`. At any time you keep a
       maximum matching `M` of `G` covering the current basis `B`.
 
-        - ``_is_exchange_pair(x, y)`` checks for the existence of an
+        - ``__is_exchange_pair(x, y)`` checks for the existence of an
           `M`-alternating path `P` from `y` to `x`.
-        - ``_exchange(x, y)`` replaces `M` by the symmetric difference of
+        - ``__exchange(x, y)`` replaces `M` by the symmetric difference of
           `M` and `E(P)`.
 
     - ``AlgebraicMatroid`` (not yet implemented): keeps a list of polynomials
       in variables `E - B + e` for each variable `e` in `B`.
 
-        - ``_is_exchange_pair(x, y)`` checks whether the polynomial that
+        - ``__is_exchange_pair(x, y)`` checks whether the polynomial that
           relates `y` to `E-B` uses `x`.
-        - ``_exchange(x, y)`` make new list of polynomials by computing
+        - ``__exchange(x, y)`` make new list of polynomials by computing
           resultants.
 
     All but the first of the above matroids are algebraic, and all
@@ -139,7 +139,7 @@ cdef class BasisExchangeMatroid(Matroid):
         This initializer sets up a correspondence between elements of
         ``groundset`` and ``range(len(groundset))``. ``BasisExchangeMatroid``
         uses this correspondence for encoding of subsets of the groundset as
-        bitpacked sets of integers --- see ``_pack()`` and ``__unpack()``. In
+        bitpacked sets of integers --- see ``__pack()`` and ``__unpack()``. In
         general, methods of ``BasisExchangeMatroid`` having a name starting
         with two underscores deal with such encoded subsets.
 
@@ -180,7 +180,7 @@ cdef class BasisExchangeMatroid(Matroid):
             self._idx[self._E[i]] = i
 
         if basis is not None:
-            self._pack(self._current_basis, frozenset(basis))
+            self.__pack(self._current_basis, frozenset(basis))
 
     def __dealloc__(self):
         bitset_free(self._current_basis)
@@ -191,7 +191,7 @@ cdef class BasisExchangeMatroid(Matroid):
         bitset_free(self._output)
         bitset_free(self._temp)
 
-    cdef _relabel(self, l) noexcept:
+    cdef __relabel(self, l):
         """
         Relabel each element `e` as `l[e]`, where `l` is a given injective map.
 
@@ -231,7 +231,7 @@ cdef class BasisExchangeMatroid(Matroid):
             self._heuristic_partition_var._relabel(l)
 
     # the engine
-    cdef _pack(self, bitset_t I, F) noexcept:
+    cdef __pack(self, bitset_t I, F):
         """
         Encode a subset F of the groundset into a bitpacked set of integers
         """
@@ -239,7 +239,7 @@ cdef class BasisExchangeMatroid(Matroid):
         for f in F:
             bitset_add(I, <mp_bitcnt_t> self._idx[f])
 
-    cdef __unpack(self, bitset_t I) noexcept:
+    cdef __unpack(self, bitset_t I):
         """
         Unencode a bitpacked set of integers to a subset of the groundset.
         """
@@ -252,21 +252,21 @@ cdef class BasisExchangeMatroid(Matroid):
         return frozenset(F)
 
     # this method needs to be overridden by child class
-    cdef bint _is_exchange_pair(self, long x, long y) except -1:
+    cdef bint __is_exchange_pair(self, long x, long y) except -1:
         """
         Test if current_basis-x + y is a basis
         """
         raise NotImplementedError
 
     # if this method is overridden by a child class, the child class needs to call this method
-    cdef int _exchange(self, long x, long y) except -1:
+    cdef int __exchange(self, long x, long y) except -1:
         """
         put current_basis <-- current_basis-x + y
         """
         bitset_discard(self._current_basis, x)
         bitset_add(self._current_basis, y)
 
-    cdef int _move(self, bitset_t X, bitset_t Y) except -1:
+    cdef int __move(self, bitset_t X, bitset_t Y) except -1:
         """
         Change current_basis to minimize intersection with ``X``, maximize intersection with ``Y``.
         """
@@ -275,8 +275,8 @@ cdef class BasisExchangeMatroid(Matroid):
         while x >= 0:
             y = bitset_first(Y)
             while y >= 0:
-                if self._is_exchange_pair(x, y):
-                    self._exchange(x, y)
+                if self.__is_exchange_pair(x, y):
+                    self.__exchange(x, y)
                     bitset_discard(Y, y)
                     bitset_discard(X, x)
                     if bitset_isempty(Y):
@@ -286,7 +286,7 @@ cdef class BasisExchangeMatroid(Matroid):
                     y = bitset_next(Y, y + 1)
             x = bitset_next(X, x + 1)
 
-    cdef __fundamental_cocircuit(self, bitset_t C, long x) noexcept:
+    cdef __fundamental_cocircuit(self, bitset_t C, long x):
         """
         Return the unique cocircuit that meets ``self._current_basis`` in exactly element ``x``.
         """
@@ -295,12 +295,12 @@ cdef class BasisExchangeMatroid(Matroid):
         bitset_complement(self._temp, self._current_basis)
         y = bitset_first(self._temp)
         while y >= 0:
-            if self._is_exchange_pair(x, y):
+            if self.__is_exchange_pair(x, y):
                 bitset_add(C, y)
             y = bitset_next(self._temp, y + 1)
         bitset_add(C, x)
 
-    cdef __fundamental_circuit(self, bitset_t C, long y) noexcept:
+    cdef __fundamental_circuit(self, bitset_t C, long y):
         """
         Return the unique circuit contained in ``self._current_basis`` union ``y``.
         """
@@ -308,21 +308,21 @@ cdef class BasisExchangeMatroid(Matroid):
         bitset_clear(C)
         x = bitset_first(self._current_basis)
         while x >= 0:
-            if self._is_exchange_pair(x, y):
+            if self.__is_exchange_pair(x, y):
                 bitset_add(C, x)
             x = bitset_next(self._current_basis, x + 1)
         bitset_add(C, y)
 
-    cdef __max_independent(self, bitset_t R, bitset_t F) noexcept:
+    cdef __max_independent(self, bitset_t R, bitset_t F):
         """
         Bitpacked version of ``max_independent``.
         """
         bitset_difference(self._inside, self._current_basis, F)
         bitset_difference(self._outside, F, self._current_basis)
-        self._move(self._inside, self._outside)
+        self.__move(self._inside, self._outside)
         bitset_intersection(R, self._current_basis, F)
 
-    cdef __circuit(self, bitset_t R, bitset_t F) noexcept:
+    cdef __circuit(self, bitset_t R, bitset_t F):
         """
         Bitpacked version of ``circuit``.
         """
@@ -335,8 +335,8 @@ cdef class BasisExchangeMatroid(Matroid):
         while y >= 0:
             x = bitset_first(self._inside)
             while x >= 0:
-                if self._is_exchange_pair(x, y):
-                    self._exchange(x, y)
+                if self.__is_exchange_pair(x, y):
+                    self.__exchange(x, y)
                     bitset_discard(self._outside, y)
                     bitset_discard(self._inside, x)
                     if bitset_isempty(self._outside):
@@ -349,13 +349,13 @@ cdef class BasisExchangeMatroid(Matroid):
                 return
             y = bitset_next(self._outside, y + 1)
 
-    cdef __closure(self, bitset_t R, bitset_t F) noexcept:
+    cdef __closure(self, bitset_t R, bitset_t F):
         """
         Bitpacked version of ``closure``.
         """
         bitset_difference(self._inside, self._current_basis, F)
         bitset_difference(self._outside, F, self._current_basis)
-        self._move(self._inside, self._outside)
+        self.__move(self._inside, self._outside)
         bitset_set_first_n(R, self._groundset_size)
         cdef long x = bitset_first(self._inside)
         while x >= 0:
@@ -363,17 +363,17 @@ cdef class BasisExchangeMatroid(Matroid):
             bitset_difference(R, R, F)
             x = bitset_next(self._inside, x + 1)
 
-    cdef __max_coindependent(self, bitset_t R, bitset_t F) noexcept:
+    cdef __max_coindependent(self, bitset_t R, bitset_t F):
         """
         Bitpacked version of ``max_coindependent``.
         """
         bitset_complement(R, F)
         bitset_difference(self._inside, self._current_basis, R)
         bitset_difference(self._outside, R, self._current_basis)
-        self._move(self._inside, self._outside)
+        self.__move(self._inside, self._outside)
         bitset_difference(R, F, self._current_basis)
 
-    cdef __cocircuit(self, bitset_t R, bitset_t F) noexcept:
+    cdef __cocircuit(self, bitset_t R, bitset_t F):
         """
         Bitpacked version of ``cocircuit``.
         """
@@ -387,8 +387,8 @@ cdef class BasisExchangeMatroid(Matroid):
         while x >= 0:
             y = bitset_first(self._outside)
             while y >= 0:
-                if self._is_exchange_pair(x, y):
-                    self._exchange(x, y)
+                if self.__is_exchange_pair(x, y):
+                    self.__exchange(x, y)
                     bitset_discard(self._outside, y)
                     bitset_discard(self._inside, x)
                     if bitset_isempty(self._inside):
@@ -401,14 +401,14 @@ cdef class BasisExchangeMatroid(Matroid):
                 return
             x = bitset_next(self._inside, x + 1)
 
-    cdef _coclosure_internal(self, bitset_t R, bitset_t F) noexcept:
+    cdef __coclosure(self, bitset_t R, bitset_t F):
         """
         Bitpacked version of ``closure``.
         """
         bitset_complement(R, F)
         bitset_difference(self._inside, self._current_basis, R)
         bitset_difference(self._outside, R, self._current_basis)
-        self._move(self._inside, self._outside)
+        self.__move(self._inside, self._outside)
         bitset_set_first_n(R, self._groundset_size)
         cdef long y = bitset_first(self._outside)
         while y >= 0:
@@ -416,16 +416,16 @@ cdef class BasisExchangeMatroid(Matroid):
             bitset_difference(R, R, F)
             y = bitset_next(self._outside, y + 1)
 
-    cdef __augment(self, bitset_t R, bitset_t X, bitset_t Y) noexcept:
+    cdef __augment(self, bitset_t R, bitset_t X, bitset_t Y):
         """
         Bitpacked version of ``augment``.
         """
         bitset_difference(self._inside, self._current_basis, X)
         bitset_difference(self._outside, X, self._current_basis)
-        self._move(self._inside, self._outside)
+        self.__move(self._inside, self._outside)
         bitset_difference(self._inside, self._inside, Y)
         bitset_difference(self._outside, Y, self._current_basis)
-        self._move(self._inside, self._outside)
+        self.__move(self._inside, self._outside)
         bitset_intersection(R, self._current_basis, Y)
 
     cdef bint __is_independent(self, bitset_t F) except -1:
@@ -434,34 +434,34 @@ cdef class BasisExchangeMatroid(Matroid):
         """
         bitset_difference(self._inside, self._current_basis, F)
         bitset_difference(self._outside, F, self._current_basis)
-        self._move(self._inside, self._outside)
+        self.__move(self._inside, self._outside)
         return bitset_isempty(self._outside)
 
-    cdef __move_current_basis(self, bitset_t X, bitset_t Y) noexcept:
+    cdef __move_current_basis(self, bitset_t X, bitset_t Y):
         """
         Bitpacked version of ``_move_current_basis``.
         """
         bitset_difference(self._inside, self._current_basis, X)
         bitset_difference(self._outside, X, self._current_basis)
-        self._move(self._inside, self._outside)
+        self.__move(self._inside, self._outside)
         bitset_intersection(self._inside, self._current_basis, Y)
         bitset_complement(self._outside, self._current_basis)
         bitset_difference(self._outside, self._outside, Y)
-        self._move(self._inside, self._outside)
+        self.__move(self._inside, self._outside)
 
     # functions for derived classes and for parent class
-    cdef bint _set_current_basis(self, F) noexcept:
+    cdef bint _set_current_basis(self, F):
         """
         Set _current_basis to subset of the groundset ``F``.
         """
-        self._pack(self._input, F)
+        self.__pack(self._input, F)
         bitset_difference(self._inside, self._current_basis, self._input)
         bitset_difference(self._outside, self._input, self._current_basis)
-        self._move(self._inside, self._outside)
+        self.__move(self._inside, self._outside)
         return bitset_isempty(self._outside) and bitset_isempty(self._inside)
 
     # groundset and full_rank
-    cpdef groundset(self) noexcept:
+    cpdef groundset(self):
         """
         Return the groundset of the matroid.
 
@@ -479,7 +479,7 @@ cdef class BasisExchangeMatroid(Matroid):
         """
         return self._groundset
 
-    cpdef groundset_list(self) noexcept:
+    cpdef groundset_list(self):
         """
         Return a list of elements of the groundset of the matroid.
 
@@ -525,7 +525,7 @@ cdef class BasisExchangeMatroid(Matroid):
         """
         return self._groundset_size
 
-    cpdef full_rank(self) noexcept:
+    cpdef full_rank(self):
         r"""
         Return the rank of the matroid.
 
@@ -546,7 +546,7 @@ cdef class BasisExchangeMatroid(Matroid):
         """
         return self._matroid_rank
 
-    cpdef full_corank(self) noexcept:
+    cpdef full_corank(self):
         r"""
         Return the corank of the matroid.
 
@@ -574,7 +574,7 @@ cdef class BasisExchangeMatroid(Matroid):
 
     # matroid oracles
 
-    cpdef basis(self) noexcept:
+    cpdef basis(self):
         r"""
         Return an arbitrary basis of the matroid.
 
@@ -603,7 +603,7 @@ cdef class BasisExchangeMatroid(Matroid):
         """
         return self.__unpack(self._current_basis)
 
-    cpdef _move_current_basis(self, X, Y) noexcept:
+    cpdef _move_current_basis(self, X, Y):
         """
         Change current basis so that intersection with X is maximized,
         intersection with Y is minimized.
@@ -630,11 +630,11 @@ cdef class BasisExchangeMatroid(Matroid):
             ['b', 'c', 'e', 'f']
 
         """
-        self._pack(self._input, X)
-        self._pack(self._input2, Y)
+        self.__pack(self._input, X)
+        self.__pack(self._input2, Y)
         self.__move_current_basis(self._input, self._input2)
 
-    cpdef _max_independent(self, F) noexcept:
+    cpdef _max_independent(self, F):
         """
         Compute a maximal independent subset.
 
@@ -661,11 +661,11 @@ cdef class BasisExchangeMatroid(Matroid):
             see :meth:`<sage.matroids.matroid.Matroid.max_independent>`.
 
         """
-        self._pack(self._input, F)
+        self.__pack(self._input, F)
         self.__max_independent(self._output, self._input)
         return self.__unpack(self._output)
 
-    cpdef _rank(self, F) noexcept:
+    cpdef _rank(self, F):
         """
         Compute the rank of a subset of the ground set.
 
@@ -692,11 +692,11 @@ cdef class BasisExchangeMatroid(Matroid):
             see :meth:`<sage.matroids.matroid.Matroid.rank>`.
 
         """
-        self._pack(self._input, F)
+        self.__pack(self._input, F)
         self.__max_independent(self._output, self._input)
         return bitset_len(self._output)
 
-    cpdef _circuit(self, F) noexcept:
+    cpdef _circuit(self, F):
         """
         Return a minimal dependent subset.
 
@@ -729,11 +729,11 @@ cdef class BasisExchangeMatroid(Matroid):
             the input is indeed a subset of the ground set,
             see :meth:`<sage.matroids.matroid.Matroid.circuit>`.
         """
-        self._pack(self._input, F)
+        self.__pack(self._input, F)
         self.__circuit(self._output, self._input)
         return self.__unpack(self._output)
 
-    cpdef _fundamental_circuit(self, B, e) noexcept:
+    cpdef _fundamental_circuit(self, B, e):
         r"""
         Return the `B`-fundamental circuit using `e`.
 
@@ -754,13 +754,13 @@ cdef class BasisExchangeMatroid(Matroid):
             sage: sorted(M._fundamental_circuit('abcd', 'e'))
             ['a', 'b', 'c', 'e']
         """
-        self._pack(self._input, B)
+        self.__pack(self._input, B)
         bitset_clear(self._input2)
         self.__move_current_basis(self._input, self._input2)
         self.__fundamental_circuit(self._output, self._idx[e])
         return self.__unpack(self._output)
 
-    cpdef _closure(self, F) noexcept:
+    cpdef _closure(self, F):
         """
         Return the closure of a set.
 
@@ -787,11 +787,11 @@ cdef class BasisExchangeMatroid(Matroid):
             :meth:`<sage.matroids.matroid.Matroid.closure>`.
 
         """
-        self._pack(self._input, F)
+        self.__pack(self._input, F)
         self.__closure(self._output, self._input)
         return self.__unpack(self._output)
 
-    cpdef _max_coindependent(self, F) noexcept:
+    cpdef _max_coindependent(self, F):
         """
         Compute a maximal coindependent subset.
 
@@ -818,11 +818,11 @@ cdef class BasisExchangeMatroid(Matroid):
             see :meth:`<sage.matroids.matroid.Matroid.max_coindependent>`.
 
         """
-        self._pack(self._input, F)
+        self.__pack(self._input, F)
         self.__max_coindependent(self._output, self._input)
         return self.__unpack(self._output)
 
-    cpdef _corank(self, F) noexcept:
+    cpdef _corank(self, F):
         """
         Return the corank of a set.
 
@@ -848,11 +848,11 @@ cdef class BasisExchangeMatroid(Matroid):
             input is indeed a subset of the ground set,
             see :meth:`<sage.matroids.matroid.Matroid.corank>`.
         """
-        self._pack(self._input, F)
+        self.__pack(self._input, F)
         self.__max_coindependent(self._output, self._input)
         return bitset_len(self._output)
 
-    cpdef _cocircuit(self, F) noexcept:
+    cpdef _cocircuit(self, F):
         """
         Return a minimal codependent subset.
 
@@ -885,11 +885,11 @@ cdef class BasisExchangeMatroid(Matroid):
             input is indeed a subset of the ground set,
             see :meth:`<sage.matroids.matroid.Matroid.cocircuit>`.
         """
-        self._pack(self._input, F)
+        self.__pack(self._input, F)
         self.__cocircuit(self._output, self._input)
         return self.__unpack(self._output)
 
-    cpdef _fundamental_cocircuit(self, B, e) noexcept:
+    cpdef _fundamental_cocircuit(self, B, e):
         r"""
         Return the `B`-fundamental circuit using `e`.
 
@@ -910,13 +910,13 @@ cdef class BasisExchangeMatroid(Matroid):
             sage: sorted(M._fundamental_cocircuit('efgh', 'e'))
             ['b', 'c', 'd', 'e']
         """
-        self._pack(self._input, B)
+        self.__pack(self._input, B)
         bitset_clear(self._input2)
         self.__move_current_basis(self._input, self._input2)
         self.__fundamental_cocircuit(self._output, self._idx[e])
         return self.__unpack(self._output)
 
-    cpdef _coclosure(self, F) noexcept:
+    cpdef _coclosure(self, F):
         """
         Return the coclosure of a set.
 
@@ -943,11 +943,11 @@ cdef class BasisExchangeMatroid(Matroid):
             see :meth:`<sage.matroids.matroid.Matroid.coclosure>`.
 
         """
-        self._pack(self._input, F)
-        self._coclosure_internal(self._output, self._input)
+        self.__pack(self._input, F)
+        self.__coclosure(self._output, self._input)
         return self.__unpack(self._output)
 
-    cpdef _augment(self, X, Y) noexcept:
+    cpdef _augment(self, X, Y):
         r"""
         Return a maximal subset `I` of `Y` such that `r(X + I)=r(X) + r(I)`.
 
@@ -973,12 +973,12 @@ cdef class BasisExchangeMatroid(Matroid):
             ['e', 'f', 'g']
 
         """
-        self._pack(self._input, X)
-        self._pack(self._input2, Y)
+        self.__pack(self._input, X)
+        self.__pack(self._input2, Y)
         self.__augment(self._output, self._input, self._input2)
         return self.__unpack(self._output)
 
-    cpdef _is_independent(self, F) noexcept:
+    cpdef _is_independent(self, F):
         """
         Test if input is independent.
 
@@ -1006,12 +1006,12 @@ cdef class BasisExchangeMatroid(Matroid):
             the input is indeed a subset of the ground set,
             see :meth:`<sage.matroids.matroid.Matroid.is_independent>`.
         """
-        self._pack(self._input, F)
+        self.__pack(self._input, F)
         return self.__is_independent(self._input)
 
     # connectivity
 
-    cpdef components(self) noexcept:
+    cpdef components(self):
         """
         Return an iterable containing the components of the matroid.
 
@@ -1095,7 +1095,7 @@ cdef class BasisExchangeMatroid(Matroid):
         sig_free(comp)
         return res
 
-    cpdef _link(self, S, T) noexcept:
+    cpdef _link(self, S, T):
         r"""
         Given disjoint subsets `S` and `T`, return a connector `I` and a separation `X`,
         which are optimal dual solutions in Tutte's Linking Theorem:
@@ -1134,7 +1134,7 @@ cdef class BasisExchangeMatroid(Matroid):
             sage: M.connectivity(X)
             2
             sage: J = M.groundset()-(S|T|I)
-            sage: N = (M/I).delete(J)
+            sage: N = M/I\J
             sage: N.connectivity(S)
             2
         """
@@ -1142,8 +1142,8 @@ cdef class BasisExchangeMatroid(Matroid):
         cdef bitset_t SS, TT
         bitset_init(SS, self._groundset_size)
         bitset_init(TT, self._groundset_size)
-        self._pack(SS,S)
-        self._pack(TT,T)
+        self.__pack(SS,S)
+        self.__pack(TT,T)
         #F = set(self.groundset()) - (S | T)
         cdef bitset_t F, I
         bitset_init(F, self._groundset_size)
@@ -1242,7 +1242,7 @@ cdef class BasisExchangeMatroid(Matroid):
 
     # enumeration
 
-    cpdef f_vector(self) noexcept:
+    cpdef f_vector(self):
         r"""
         Return the `f`-vector of the matroid.
 
@@ -1283,7 +1283,7 @@ cdef class BasisExchangeMatroid(Matroid):
         sig_free(todo)
         return f_vec
 
-    cdef _f_vector_rec(self, object f_vec, bitset_t* flats, bitset_t* todo, long elt, long i) noexcept:
+    cdef _f_vector_rec(self, object f_vec, bitset_t* flats, bitset_t* todo, long elt, long i):
         """
         Recursion for the f_vector method.
         """
@@ -1301,7 +1301,7 @@ cdef class BasisExchangeMatroid(Matroid):
                 self._f_vector_rec(f_vec, flats, todo, e + 1, i + 1)
             e = bitset_next(todo[i], e)
 
-    cpdef flats(self, r) noexcept:
+    cpdef flats(self, r):
         """
         Return the collection of flats of the matroid of specified rank.
 
@@ -1356,7 +1356,7 @@ cdef class BasisExchangeMatroid(Matroid):
         sig_free(todo)
         return Rflats
 
-    cdef _flats_rec(self, SetSystem Rflats, long R, bitset_t* flats, bitset_t* todo, long elt, long i) noexcept:
+    cdef _flats_rec(self, SetSystem Rflats, long R, bitset_t* flats, bitset_t* todo, long elt, long i):
         """
         Recursion for the ``flats`` method.
         """
@@ -1376,7 +1376,7 @@ cdef class BasisExchangeMatroid(Matroid):
                 self._flats_rec(Rflats, R, flats, todo, e + 1, i + 1)
             e = bitset_next(todo[i], e)
 
-    cpdef coflats(self, r) noexcept:
+    cpdef coflats(self, r):
         """
         Return the collection of coflats of the matroid of specified corank.
 
@@ -1421,7 +1421,7 @@ cdef class BasisExchangeMatroid(Matroid):
         Rcoflats = SetSystem(self._E)
         i = 0
         bitset_clear(todo[0])
-        self._coclosure_internal(coflats[0], todo[0])
+        self.__coclosure(coflats[0], todo[0])
         bitset_complement(todo[0], coflats[0])
         self._coflats_rec(Rcoflats, r, coflats, todo, 0, 0)
         for i in range(r + 1):
@@ -1431,7 +1431,7 @@ cdef class BasisExchangeMatroid(Matroid):
         sig_free(todo)
         return Rcoflats
 
-    cdef _coflats_rec(self, SetSystem Rcoflats, long R, bitset_t* coflats, bitset_t* todo, long elt, long i) noexcept:
+    cdef _coflats_rec(self, SetSystem Rcoflats, long R, bitset_t* coflats, bitset_t* todo, long elt, long i):
         """
         Recursion for the ``coflats`` method.
         """
@@ -1443,7 +1443,7 @@ cdef class BasisExchangeMatroid(Matroid):
         while e >= 0:
             bitset_copy(self._input, coflats[i])
             bitset_add(self._input, e)
-            self._coclosure_internal(coflats[i + 1], self._input)
+            self.__coclosure(coflats[i + 1], self._input)
             bitset_difference(todo[i], todo[i], coflats[i + 1])
             bitset_difference(todo[i + 1], coflats[i + 1], coflats[i])
             if bitset_first(todo[i + 1]) == e:
@@ -1451,7 +1451,7 @@ cdef class BasisExchangeMatroid(Matroid):
                 self._coflats_rec(Rcoflats, R, coflats, todo, e + 1, i + 1)
             e = bitset_next(todo[i], e)
 
-    cdef _flat_element_inv(self, long k) noexcept:
+    cdef _flat_element_inv(self, long k):
         """
         Compute a flat-element invariant of the matroid.
         """
@@ -1486,7 +1486,7 @@ cdef class BasisExchangeMatroid(Matroid):
         f_vec = tuple([f_inc[i][self._groundset_size] for i in range(k + 1)])
         return fie, f_vec
 
-    cdef _flat_element_inv_rec(self, object f_inc, long R, bitset_t* flats, bitset_t* todo, long elt, long i) noexcept:
+    cdef _flat_element_inv_rec(self, object f_inc, long R, bitset_t* flats, bitset_t* todo, long elt, long i):
         """
         Recursion for ``_flat_element_inv``.
         """
@@ -1513,7 +1513,7 @@ cdef class BasisExchangeMatroid(Matroid):
                 self._flat_element_inv_rec(f_inc, R, flats, todo, e + 1, i + 1)
             e = bitset_next(todo[i], e)
 
-    cpdef bases_count(self) noexcept:
+    cpdef bases_count(self):
         """
         Return the number of bases of the matroid.
 
@@ -1546,7 +1546,7 @@ cdef class BasisExchangeMatroid(Matroid):
         self._bcount = res
         return self._bcount
 
-    cpdef independent_sets(self) noexcept:
+    cpdef independent_sets(self):
         r"""
         Return the list of independent subsets of the matroid.
 
@@ -1602,7 +1602,7 @@ cdef class BasisExchangeMatroid(Matroid):
         sig_free(T)
         return res
 
-    cpdef independent_r_sets(self, long r) noexcept:
+    cpdef independent_r_sets(self, long r):
         """
         Return the list of size-``r`` independent subsets of the matroid.
 
@@ -1637,7 +1637,7 @@ cdef class BasisExchangeMatroid(Matroid):
             repeat = nxksrd(self._input, self._groundset_size, r, True)
         return BB
 
-    cpdef bases(self) noexcept:
+    cpdef bases(self):
         """
         Return the list of bases of the matroid.
 
@@ -1657,7 +1657,7 @@ cdef class BasisExchangeMatroid(Matroid):
         """
         return self.independent_r_sets(self.full_rank())
 
-    cpdef dependent_r_sets(self, long r) noexcept:
+    cpdef dependent_r_sets(self, long r):
         """
         Return the list of dependent subsets of fixed size.
 
@@ -1697,7 +1697,7 @@ cdef class BasisExchangeMatroid(Matroid):
         NB.resize()
         return NB
 
-    cpdef nonbases(self) noexcept:
+    cpdef nonbases(self):
         """
         Return the list of nonbases of the matroid.
 
@@ -1722,7 +1722,7 @@ cdef class BasisExchangeMatroid(Matroid):
         """
         return self.dependent_r_sets(self.full_rank())
 
-    cpdef nonspanning_circuits(self) noexcept:
+    cpdef nonspanning_circuits(self):
         """
         Return the list of nonspanning circuits of the matroid.
 
@@ -1771,7 +1771,7 @@ cdef class BasisExchangeMatroid(Matroid):
         NSC.resize()
         return NSC
 
-    cpdef noncospanning_cocircuits(self) noexcept:
+    cpdef noncospanning_cocircuits(self):
         """
         Return the list of noncospanning cocircuits of the matroid.
 
@@ -1821,7 +1821,7 @@ cdef class BasisExchangeMatroid(Matroid):
         NSC.resize()
         return NSC
 
-    cpdef cocircuits(self) noexcept:
+    cpdef cocircuits(self):
         """
         Return the list of cocircuits of the matroid.
 
@@ -1869,7 +1869,7 @@ cdef class BasisExchangeMatroid(Matroid):
         NSC.resize()
         return NSC
 
-    cpdef circuits(self) noexcept:
+    cpdef circuits(self, limit=None):
         """
         Return the list of circuits of the matroid.
 
@@ -1892,9 +1892,12 @@ cdef class BasisExchangeMatroid(Matroid):
              ['b', 'e', 'g'], ['c', 'd', 'e', 'f'], ['c', 'd', 'e', 'g'],
              ['c', 'f', 'g'], ['d', 'e', 'f', 'g']]
         """
+        cdef found = 0
         cdef SetSystem NSC
         NSC = SetSystem(self._E)
         if self._groundset_size == 0:
+            return NSC
+        if limit == 0:
             return NSC
         bitset_clear(self._input)
         bitset_set_first_n(self._input, self._matroid_rank)
@@ -1914,6 +1917,10 @@ cdef class BasisExchangeMatroid(Matroid):
                     self.__fundamental_circuit(self._output, f)
                     if f == bitset_first(self._output):
                         NSC._append(self._output)
+                        found += 1
+                        if limit is not None and found >= limit:
+                            NSC.resize()
+                            return NSC
                     f = bitset_next(self._input2, f + 1)
             repeat = nxksrd(self._input, self._groundset_size, self._matroid_rank, True)
         NSC.resize()
@@ -1921,7 +1928,7 @@ cdef class BasisExchangeMatroid(Matroid):
 
     # isomorphism
 
-    cpdef _characteristic_setsystem(self) noexcept:
+    cpdef _characteristic_setsystem(self):
         r"""
         Return a characteristic set-system for this matroid, on the same
         ground set.
@@ -1943,7 +1950,7 @@ cdef class BasisExchangeMatroid(Matroid):
         else:
             return self.noncospanning_cocircuits()
 
-    cpdef _weak_invariant(self) noexcept:
+    cpdef _weak_invariant(self):
         """
         Return an isomorphism invariant of the matroid.
 
@@ -1974,7 +1981,7 @@ cdef class BasisExchangeMatroid(Matroid):
                 self._weak_partition_var = SetSystem(self._E, [fie[f] for f in sorted(fie)])
         return self._weak_invariant_var
 
-    cpdef _weak_partition(self) noexcept:
+    cpdef _weak_partition(self):
         """
         Return an ordered partition based on the incidences of elements with
         low-dimensional flats.
@@ -1988,7 +1995,7 @@ cdef class BasisExchangeMatroid(Matroid):
         self._weak_invariant()
         return self._weak_partition_var
 
-    cpdef _strong_invariant(self) noexcept:
+    cpdef _strong_invariant(self):
         """
         Return an isomorphism invariant of the matroid.
 
@@ -2014,7 +2021,7 @@ cdef class BasisExchangeMatroid(Matroid):
             self._strong_invariant_var = CP[2]
         return self._strong_invariant_var
 
-    cpdef _strong_partition(self) noexcept:
+    cpdef _strong_partition(self):
         """
         Return an equitable partition which refines _weak_partition().
 
@@ -2028,7 +2035,7 @@ cdef class BasisExchangeMatroid(Matroid):
         self._strong_invariant()
         return self._strong_partition_var
 
-    cpdef _heuristic_invariant(self) noexcept:
+    cpdef _heuristic_invariant(self):
         """
         Return a number characteristic for the construction of
         _heuristic_partition().
@@ -2047,7 +2054,7 @@ cdef class BasisExchangeMatroid(Matroid):
             self._heuristic_invariant_var = CP[2]
         return self._heuristic_invariant_var
 
-    cpdef _heuristic_partition(self) noexcept:
+    cpdef _heuristic_partition(self):
         """
         Return an ordered partition into singletons which refines an equitable
         partition of the matroid.
@@ -2071,7 +2078,7 @@ cdef class BasisExchangeMatroid(Matroid):
         self._heuristic_invariant()
         return self._heuristic_partition_var
 
-    cdef _flush(self) noexcept:
+    cdef _flush(self):
         """
         Delete all invariants.
         """
@@ -2079,7 +2086,7 @@ cdef class BasisExchangeMatroid(Matroid):
         self._strong_invariant_var = None
         self._heuristic_invariant_var = None
 
-    cpdef _equitable_partition(self, P=None) noexcept:
+    cpdef _equitable_partition(self, P=None):
         """
         Return the equitable refinement of a given ordered partition.
 
@@ -2110,7 +2117,7 @@ cdef class BasisExchangeMatroid(Matroid):
             EQ = self._characteristic_setsystem()._equitable_partition()
         return EQ[0]
 
-    cpdef _is_isomorphism(self, other, morphism) noexcept:
+    cpdef _is_isomorphism(self, other, morphism):
         r"""
         Version of is_isomorphism() that does no type checking.
 
@@ -2132,7 +2139,7 @@ cdef class BasisExchangeMatroid(Matroid):
             sage: N._is_isomorphism(M, {e:e for e in M.groundset()})
             False
 
-            sage: M = matroids.named_matroids.Fano().delete(['g'])
+            sage: M = matroids.named_matroids.Fano() \ ['g']
             sage: N = matroids.Wheel(3)
             sage: morphism = {'a':0, 'b':1, 'c': 2, 'd':4, 'e':5, 'f':3}
             sage: M._is_isomorphism(N, morphism)
@@ -2151,13 +2158,13 @@ cdef class BasisExchangeMatroid(Matroid):
             True
         """
         if not isinstance(other, BasisExchangeMatroid):
-            from sage.matroids.basis_matroid import BasisMatroid
+            from .basis_matroid import BasisMatroid
             ot = BasisMatroid(other)
         else:
             ot = other
         return self.__is_isomorphism(ot, morphism)
 
-    cdef bint __is_isomorphism(self, BasisExchangeMatroid other, morphism) noexcept:
+    cdef bint __is_isomorphism(self, BasisExchangeMatroid other, morphism):
         """
         Bitpacked version of ``is_isomorphism``.
         """
@@ -2177,7 +2184,7 @@ cdef class BasisExchangeMatroid(Matroid):
             repeat = nxksrd(self._input, self._groundset_size, self._matroid_rank, True)
         return True
 
-    cpdef _isomorphism(self, other) noexcept:
+    cpdef _isomorphism(self, other):
         """
         Return an isomorphism form ``self`` to ``other``, if one exists.
 
@@ -2217,7 +2224,7 @@ cdef class BasisExchangeMatroid(Matroid):
             True
         """
         if not isinstance(other, BasisExchangeMatroid):
-            from sage.matroids.basis_matroid import BasisMatroid
+            from .basis_matroid import BasisMatroid
             other = BasisMatroid(other)
         if self is other:
             return {e:e for e in self.groundset()}
@@ -2265,7 +2272,7 @@ cdef class BasisExchangeMatroid(Matroid):
 
         return self._characteristic_setsystem()._isomorphism(other._characteristic_setsystem(), PS, PO)
 
-    cpdef _is_isomorphic(self, other, certificate=False) noexcept:
+    cpdef _is_isomorphic(self, other, certificate=False):
         """
         Test if ``self`` is isomorphic to ``other``.
 
@@ -2352,7 +2359,7 @@ cdef class BasisExchangeMatroid(Matroid):
 
         return self._characteristic_setsystem()._isomorphism(other._characteristic_setsystem(), PS, PO) is not None
 
-    cpdef is_valid(self) noexcept:
+    cpdef is_valid(self):
         r"""
         Test if the data obey the matroid axioms.
 
@@ -2397,7 +2404,7 @@ cdef class BasisExchangeMatroid(Matroid):
                 # Set current basis to Y
                 bitset_difference(self._inside, self._current_basis, BB._subsets[pointerY])
                 bitset_difference(self._outside, BB._subsets[pointerY], self._current_basis)
-                self._move(self._inside, self._outside)
+                self.__move(self._inside, self._outside)
                 if not bitset_eq(self._current_basis, BB._subsets[pointerY]):
                     # We failed to set the current basis to Y through basis exchanges.
                     # Therefore, the exchange axioms are violated!
@@ -2409,7 +2416,7 @@ cdef class BasisExchangeMatroid(Matroid):
                     foundpair = False
                     y = bitset_first(self._input2)
                     while y >= 0:  # for y in Y-X
-                        if self._is_exchange_pair(y, x):
+                        if self.__is_exchange_pair(y, x):
                             foundpair = True
                             y = -1
                         else:
@@ -2422,7 +2429,7 @@ cdef class BasisExchangeMatroid(Matroid):
         return True
 
 
-cdef bint nxksrd(bitset_s* b, long n, long k, bint succ) noexcept:
+cdef bint nxksrd(bitset_s* b, long n, long k, bint succ):
     """
     Next size-k subset of a size-n set in a revolving-door sequence.
 
