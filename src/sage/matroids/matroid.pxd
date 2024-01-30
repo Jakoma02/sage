@@ -107,7 +107,7 @@ cdef class Matroid(SageObject):
     cpdef is_valid(self) noexcept
 
     # enumeration
-    cpdef circuits(self) noexcept
+    cpdef circuits(self, limit=*) noexcept
     cpdef nonspanning_circuits(self) noexcept
     cpdef cocircuits(self) noexcept
     cpdef noncospanning_cocircuits(self) noexcept

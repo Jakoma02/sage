@@ -2372,7 +2372,7 @@ cdef class Matroid(SageObject):
 
     # enumeration
 
-    cpdef circuits(self) noexcept:
+    cpdef circuits(self, limit=None) noexcept:
         """
         Return the list of circuits of the matroid.
 
@@ -2394,10 +2394,21 @@ cdef class Matroid(SageObject):
             ['b', 'd', 'f', 'g'], ['b', 'e', 'g'], ['c', 'd', 'e', 'g'],
             ['c', 'f', 'g'], ['d', 'e', 'f']]
         """
+        cdef int generated = 0
         C = set()
+        if limit == 0:
+            return []
         for B in self.bases():
-            C.update([self._circuit(B.union(set([e])))
-                      for e in self.groundset().difference(B)])
+            for e in self.groundset().difference(B):
+                new_circuit = self._circuit(B.union(set([e])))
+                if new_circuit in C:
+                    continue
+
+                C.add(new_circuit)
+                generated += 1
+                if limit is not None and generated >= limit:
+                    return list(C)
+
         return list(C)
 
     cpdef nonspanning_circuits(self) noexcept:
